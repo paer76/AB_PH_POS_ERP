@@ -1,7 +1,7 @@
 -- Run with: supabase test db
 -- Uses the seed users: owner 1111..., secretary 2222...
 begin;
-select plan(41);
+select plan(45);
 
 create or replace function pg_temp.as_user(p_id uuid) returns void language sql as $$
   select set_config('role', 'authenticated', true),
@@ -13,6 +13,8 @@ $$;
 create or replace function pg_temp.as_secretary() returns void language sql as $$
   select pg_temp.as_user('22222222-2222-2222-2222-222222222222');
 $$;
+-- New functions aren't executable by everyone by default (harden migration).
+grant execute on all functions in schema pg_temp to authenticated;
 
 -- Fixtures (looked up as postgres)
 create temp table fx as
@@ -111,6 +113,14 @@ select throws_like($$ select public.generate_soa((select resto from fx), public.
   'No unbilled%', 'orders are never billed twice');
 select lives_ok($$ select public.record_soa_payment((select id from public.monthly_soas limit 1), 100, 'bank_transfer') $$, 'owner records remote SOA payment');
 select is((select balance from public.v_soas limit 1), 150.00::numeric(10,2), 'SOA balance updated');
+
+-- ---------- Hardening ----------
+select pg_temp.as_secretary();
+select throws_ok($$ select public.client_outstanding((select juan from fx)) $$, '42501', null, 'client_outstanding not callable directly');
+select throws_ok($$ select public.price_for((select juan from fx), (select slim from fx)) $$, '42501', null, 'price_for not callable directly');
+reset role;
+select ok(not has_table_privilege('anon', 'public.v_client_balances', 'select'), 'anon cannot read v_client_balances');
+select ok(not has_table_privilege('anon', 'public.v_soas', 'select'), 'anon cannot read v_soas');
 
 select * from finish();
 rollback;

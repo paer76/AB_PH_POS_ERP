@@ -42,10 +42,18 @@ export async function listStaff(): Promise<Result<StaffRow[]>> {
   }
 }
 
+// Matches the Supabase Auth rules (minimum_password_length / password_requirements).
+const Password = z
+  .string()
+  .min(8, "Password must be at least 8 characters")
+  .regex(/[a-z]/i, "Password must include a letter")
+  .regex(/\d/, "Password must include a number");
+const UserId = z.uuid();
+
 const CreateSchema = z.object({
   full_name: z.string().trim().min(2, "Enter a name"),
   email: z.email("Enter a valid email").trim().toLowerCase(),
-  password: z.string().min(8, "Password must be at least 8 characters"),
+  password: Password,
   role: z.enum(["owner", "secretary"]),
 });
 
@@ -70,6 +78,7 @@ export async function createStaff(input: z.input<typeof CreateSchema>): Promise<
 export async function setStaffActive(userId: string, active: boolean): Promise<Result> {
   try {
     const me = await assertOwner();
+    if (!UserId.safeParse(userId).success) return { ok: false, error: "Unknown staff member" };
     if (userId === me.id) return { ok: false, error: "You cannot deactivate yourself" };
     // Profile change as the owner (not service role) so the audit log records who did it.
     const supabase = await createClient();
@@ -88,7 +97,9 @@ export async function setStaffActive(userId: string, active: boolean): Promise<R
 export async function resetStaffPassword(userId: string, password: string): Promise<Result> {
   try {
     await assertOwner();
-    if (password.length < 8) return { ok: false, error: "Password must be at least 8 characters" };
+    if (!UserId.safeParse(userId).success) return { ok: false, error: "Unknown staff member" };
+    const parsed = Password.safeParse(password);
+    if (!parsed.success) return { ok: false, error: parsed.error.issues[0].message };
     const { error } = await createAdminClient().auth.admin.updateUserById(userId, { password });
     if (error) return { ok: false, error: error.message };
     return { ok: true, data: null };

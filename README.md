@@ -14,6 +14,7 @@ and the owner monitors sales, cash and deliveries live from anywhere.
 - [Part 3 — First-day setup in the app](#part-3--first-day-setup-in-the-app)
 - [Everyday commands](#everyday-commands)
 - [Troubleshooting](#troubleshooting)
+- [Security](#security)
 - [Notes](#notes)
 
 ## Features
@@ -49,6 +50,28 @@ See [supabase/migrations/20261029000000_init.sql](supabase/migrations/2026102900
 This gives you a complete private copy (app + database) with sample data, for testing and development.
 Nothing you do here affects the live store.
 
+> The local copy is **for testing only**. Don't run the real store on it: it has no backups and can't be
+> reached outside your Wi-Fi. The store uses the online version (Part 2).
+
+### Recommended computer specs
+
+These specs are for the computer that runs the local copy. The local database runs about 10 small containers
+inside Docker, plus the app, a code editor and a browser.
+
+| | Minimum | Recommended |
+|---|---|---|
+| **OS** | Windows 10 64-bit (22H2), macOS 13, or a recent 64-bit Linux | Windows 11, macOS 14+, or Linux |
+| **CPU** | 64-bit, 4 cores, **virtualization enabled** (Intel VT-x / AMD-V) | 6+ cores (Intel Core i5 / Ryzen 5, 10th gen / 3000 series or newer; any Apple M-series) |
+| **RAM** | 8 GB (works, but close other apps) | **16 GB** |
+| **Storage** | SSD with 20 GB free | SSD with 40 GB+ free |
+| **Internet** | Needed for the first download (about 4 GB of database images, plus ~1 GB of app packages) | — |
+
+- **Use an SSD.** On a hard disk (HDD), Docker and `npm install` are very slow.
+- Windows **Home** edition is fine. Docker works on Home through WSL 2.
+- The store's phones, tablets and the owner's devices **don't need any of this**. They only open the online app
+  in a browser. Anything with an up-to-date Chrome or Safari works (Android 10+ / iOS 16+, 3 GB+ RAM recommended)
+  on a stable internet connection.
+
 ### 1.1 Install the tools
 
 You need four things. Install each one, then check it with the command shown.
@@ -63,10 +86,110 @@ You need four things. Install each one, then check it with the command shown.
 Supabase CLI:
 
 - **macOS / Linux (Homebrew):** `brew install supabase/tap/supabase`
-- **Windows (Scoop):** `scoop bucket add supabase https://github.com/supabase/scoop-bucket.git` then `scoop install supabase`
+- **Windows:** install it with Scoop. See the Windows step-by-step guide below.
 - Other options: https://supabase.com/docs/guides/local-development/cli/getting-started
 
 > Make sure **Docker Desktop is open and running** before continuing. The Supabase CLI needs it.
+
+<details>
+<summary><b>Windows step by step (Docker, WSL 2, Git, Node.js, Scoop, Supabase CLI)</b></summary>
+
+#### Docker: install Docker Desktop with WSL 2
+
+On Windows, the database runs on Linux, so Docker needs a small Linux environment. Install
+**Docker Desktop using the WSL 2 engine**. This is the default, and you don't have to choose between "Docker" and
+"Docker with WSL": Docker Desktop runs on top of WSL 2. You also **don't need to install Ubuntu** or open a Linux
+terminal. Every command below runs in normal Windows PowerShell.
+
+| Option | Verdict |
+|---|---|
+| **Docker Desktop + WSL 2 engine** | ✅ **Use this.** Easiest setup, fastest, works on Windows Home and Pro. |
+| Docker Desktop + Hyper-V engine | ❌ Older and slower. Windows Pro only. Only for PCs where WSL 2 can't be used. |
+| Docker Engine installed by hand inside an Ubuntu WSL distro (no Docker Desktop) | ⚠️ Works, but more advanced: you must run Node, Supabase and the project inside Ubuntu, not PowerShell. Only worth it if you can't use Docker Desktop's license. |
+
+Docker Desktop is free for personal use and for small businesses (fewer than 250 employees **and** under
+US$10M yearly revenue). A water refilling station qualifies.
+
+#### Step 1: Check that virtualization is on
+
+Open **Task Manager → Performance → CPU** and look for **Virtualization: Enabled**. If it says Disabled, restart
+into your PC's BIOS/UEFI setup (usually by pressing Del, F2 or F10 at power-on). Enable **Intel VT-x** (sometimes
+called "Intel Virtualization Technology") or **AMD SVM**, then save and restart.
+
+#### Step 2: Install WSL 2
+
+Right-click **Start → Terminal (Admin)** (or **Windows PowerShell (Admin)**), then run:
+
+```powershell
+wsl --install --no-distribution
+```
+
+**Restart the PC** when it finishes. To check, open PowerShell and run `wsl --version`. It should print a version
+with no error. If it says WSL is out of date, run `wsl --update`.
+
+#### Step 3: Install Docker Desktop
+
+1. Download it from https://www.docker.com/products/docker-desktop ("Download for Windows – AMD64";
+   choose ARM64 only on a Snapdragon/ARM laptop).
+2. Run the installer. Leave **"Use WSL 2 instead of Hyper-V"** checked.
+3. Sign out and back in (or restart) if the installer asks.
+4. Open **Docker Desktop**, accept the terms, and skip sign-in (an account is optional).
+5. In **Settings → General**, check that **"Use the WSL 2 based engine"** is on. Optionally turn on
+   **"Start Docker Desktop when you sign in"**.
+6. Wait until the bottom-left corner shows **Engine running**. To check, run `docker info` in PowerShell. It
+   should print details with no error.
+
+#### Step 4: Install Git and Node.js
+
+Open a **normal** (not Admin) PowerShell and run:
+
+```powershell
+winget install --id Git.Git -e
+winget install --id OpenJS.NodeJS.LTS -e
+```
+
+`winget` comes with Windows 10/11. If it isn't found, install **App Installer** from the Microsoft Store, or use
+the installers from the links in the table above with the default options.
+
+**Close PowerShell and open a new one** so it picks up the new programs. Then check with `git --version` and
+`node -v` (it must show v22 or higher).
+
+#### Step 5: Install Scoop
+
+Scoop is a small installer for command-line tools. It's the recommended way to get the Supabase CLI on Windows.
+In a **normal (not Admin)** PowerShell, run:
+
+```powershell
+Set-ExecutionPolicy -ExecutionPolicy RemoteSigned -Scope CurrentUser
+Invoke-RestMethod -Uri https://get.scoop.sh | Invoke-Expression
+```
+
+- If the first command asks for confirmation, type `Y` and press Enter. It only lets your own user account run
+  local scripts such as Scoop's.
+- Scoop refuses to install from an Admin window. If you see that error, open a normal PowerShell.
+- To check, run `scoop --version`.
+
+More info: https://scoop.sh
+
+#### Step 6: Install the Supabase CLI
+
+```powershell
+scoop bucket add supabase https://github.com/supabase/scoop-bucket.git
+scoop install supabase
+```
+
+To check, run `supabase --version`. To update it later, run `scoop update supabase`.
+
+#### Windows notes for the rest of this guide
+
+- Run all commands in **PowerShell**, from inside the project folder (`cd AB_PH_POS_ERP`).
+- **Docker Desktop must be running** whenever you use `supabase start`.
+- The first time you run `npm run dev` or `npm start`, Windows Firewall may ask about Node.js. Allow it on
+  **Private networks** if you want to test from your phone.
+- Older Windows PowerShell (5.1) doesn't understand `&&`. Where this guide shows `a && b`, run `a` first and then `b`.
+- To find your PC's local IP address (for phone testing), run `ipconfig` and look at **IPv4 Address** under your
+  Wi-Fi or Ethernet adapter.
+</details>
 
 <details>
 <summary><b>Linux with Podman instead of Docker (e.g. Bazzite, Fedora Silverblue)</b></summary>
@@ -156,10 +279,11 @@ Open **http://localhost:3000** and sign in with a test account (password `passwo
 As the secretary, open a shift (**Shift**), then make a sale (**POS**). The owner's dashboard updates on its own within a second.
 
 **Try it on your phone:** connect the phone to the same Wi-Fi and find your computer's local IP address
-(e.g. `192.168.1.20`). Then:
+(e.g. `192.168.1.20`; on Windows run `ipconfig`, on macOS/Linux `ip addr` or check Wi-Fi settings). Then:
 
 1. In `.env.local`, set `NEXT_PUBLIC_SUPABASE_URL=http://192.168.1.20:54321`. The phone can't reach `127.0.0.1`, which on the phone means the phone itself.
-2. Stop `npm run dev` and run a production build instead: `npm run build && npm start`.
+2. Stop `npm run dev` and run a production build instead: `npm run build && npm start`
+   (on Windows PowerShell 5.1, run `npm run build`, then `npm start`).
    The dev server blocks requests from other devices, and `NEXT_PUBLIC_` values are baked in at build time.
 3. On the phone, open `http://192.168.1.20:3000`. If it doesn't load, allow ports 3000 and 54321 in your computer's firewall.
 
@@ -208,6 +332,10 @@ In the Supabase dashboard:
 
 1. **Authentication → Sign In / Providers**: turn **off** "Allow new users to sign up". Keep the **Email** provider **enabled**, because staff sign in with it.
 2. **Authentication → Sign In / Providers → Email**: you can turn off "Confirm email", since the owner creates every account.
+3. **Authentication → Sign In / Providers → Email** (password settings): set **Minimum password length** to **8** and
+   **Password requirements** to **Letters and digits**. The app checks the same rule when the owner creates staff accounts.
+4. Optional, on Supabase Pro: turn on **Prevent use of leaked passwords**.
+5. Check **Advisors → Security Advisor** in the dashboard. It should report no issues. Run it again after any database change.
 
 ### 2.5 Create the owner account
 
@@ -298,15 +426,34 @@ Never edit the live database by hand for structural changes.
 | Problem | Fix |
 |---|---|
 | `supabase start` says it can't connect to Docker | Open Docker Desktop and wait until it says "running". With Podman, check `DOCKER_HOST` is set (see 1.1). |
+| Docker Desktop says **"WSL 2 is not installed"** or **"Virtualization not enabled"** (Windows) | Run `wsl --install --no-distribution` (or `wsl --update`) in an Admin PowerShell and restart. Turn on Intel VT-x / AMD SVM in the BIOS (see the Windows guide in 1.1). |
+| `scoop` or `supabase` is "not recognized" (Windows) | Close and reopen PowerShell. If it's still missing, rerun the Scoop install from a **non-Admin** PowerShell. |
 | Port already in use (54321, 54322, 3000…) | Another copy is running. Run `supabase stop`, or close the other `npm run dev`. |
 | Login says **"Email logins are disabled"** | The Email provider was turned off. Turn it back on (Part 2.4); only "Allow new users to sign up" should be off. Locally, check `[auth.email] enable_signup = true` in `supabase/config.toml`. |
 | Login says "Wrong email or password" for the test accounts | Run `supabase db reset` to reload the seed accounts (local only). |
 | Signed in but immediately sent back to login | The account has no profile or is deactivated. For the owner, rerun the SQL in 2.5. For staff, re-enable them under **Staff**. Also check the env variables point to the right project. |
+| Browser console shows **"Refused to connect … Content Security Policy"** | The app only allows connections to the Supabase URL it was **built** with. Check `NEXT_PUBLIC_SUPABASE_URL` in the hosting settings and redeploy. |
 | Owner dashboard doesn't update live | Refresh once. Check the browser can reach the Supabase URL. Realtime is enabled by the migration; if you created the database another way, rerun `supabase db push`. |
 | "Open a shift before making sales" | Expected: each secretary must open their own shift under **Shift** first. |
 | "Credit limit exceeded" | The client owes more than their limit. Collect payment, or the owner raises the limit on the client page. |
 | Staff page shows an error / can't create accounts | `SUPABASE_SECRET_KEY` is missing or wrong in the hosting environment variables. Redeploy after fixing it. |
 | Phone on Wi-Fi can't sign in during local testing | Use your computer's IP in `NEXT_PUBLIC_SUPABASE_URL` (see 1.5), not `127.0.0.1`. |
+
+## Security
+
+- **Database:** every table has Row Level Security. Sales, payments, voids, shifts and SOAs can only be written
+  through database functions that check the user's role (and that the account is still active).
+  The automated tests in `supabase/tests` check these rules (`supabase test db`).
+- **New database functions are not callable by default.** In a new migration, add
+  `grant execute on function public.my_function(...) to authenticated;` and check the role inside the function
+  (`perform public.require_staff();` or `public.require_owner()`).
+- **Keys:** `SUPABASE_SECRET_KEY` is used only on the server, in the Staff page actions. Never give it a
+  `NEXT_PUBLIC_` prefix, and never commit `.env.local`.
+- **Browser protections:** the app sends a Content Security Policy and anti-framing headers (see `next.config.ts`).
+  On HTTPS deployments it also sends HSTS.
+- **Keeping it up to date:** about once a month, run `npm outdated` and `npm audit`, update, then run
+  `npm run typecheck`, `npm run lint`, `npm run build` and `supabase test db` before deploying. Update the
+  Supabase CLI with `brew upgrade supabase` (or `scoop update supabase` on Windows).
 
 ## Notes
 

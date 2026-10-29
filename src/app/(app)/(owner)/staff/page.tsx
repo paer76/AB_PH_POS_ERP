@@ -86,7 +86,7 @@ function AddStaff({ open, onOpenChange, onCreated }: { open: boolean; onOpenChan
       <div className="flex flex-col gap-3">
         <Field label="Full name" htmlFor="s-name"><Input id="s-name" className="h-11" value={f.full_name} onChange={(e) => setF({ ...f, full_name: e.target.value })} /></Field>
         <Field label="Email" htmlFor="s-email"><Input id="s-email" type="email" className="h-11" value={f.email} onChange={(e) => setF({ ...f, email: e.target.value })} /></Field>
-        <Field label="Temporary password" htmlFor="s-pass" hint="At least 8 characters">
+        <Field label="Temporary password" htmlFor="s-pass" hint="At least 8 characters, with a letter and a number">
           <Input id="s-pass" className="h-11" value={f.password} onChange={(e) => setF({ ...f, password: e.target.value })} />
         </Field>
         <Field label="Role">
@@ -118,7 +118,7 @@ function ResetPassword({ row, onClose }: { row: StaffRow | null; onClose: () => 
   return (
     <ResponsiveDialog open={!!row} onOpenChange={(o) => !o && onClose()} title={`New password · ${row?.full_name ?? ""}`}
       footer={<Button size="touch" className="w-full" onClick={save} disabled={pending || password.length < 8}>Set password</Button>}>
-      <Field label="New password" htmlFor="rp" hint="At least 8 characters"><Input id="rp" className="h-11" value={password} onChange={(e) => setPassword(e.target.value)} /></Field>
+      <Field label="New password" htmlFor="rp" hint="At least 8 characters, with a letter and a number"><Input id="rp" className="h-11" value={password} onChange={(e) => setPassword(e.target.value)} /></Field>
     </ResponsiveDialog>
   );
 }
