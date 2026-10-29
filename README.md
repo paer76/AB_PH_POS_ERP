@@ -1,36 +1,74 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# Aqua Best — POS & Remote Monitoring
 
-## Getting Started
+Web app for a water refilling station. Counter staff (secretaries) use it as a POS on a phone or tablet,
+and the owner monitors sales, cash and deliveries live from anywhere.
 
-First, run the development server:
+**Stack:** Next.js 16 (App Router, Cache Components) · TypeScript · Tailwind v4 · shadcn/ui · Supabase (Postgres, Auth, Realtime)
+
+## Features
+
+| Counter (secretary) | Owner |
+|---|---|
+| Open/close shift with cash count (expected vs counted, variance) | Live dashboard: sales, collections, receivables, open drawers |
+| POS: walk-in & delivery, client prices, cash/GCash/card, utang | Reports: daily sales chart/table, client volume, CSV export |
+| Deliveries board: pending → out (rider) → completed (containers) | Approve/reject voids |
+| Record payments, request voids, print receipts | Monthly SOA generation, printing, payment allocation |
+| Client balances & container tracking | Products/prices, client terms & custom prices, riders |
+| Expenses / cash in / cash out per shift | Staff accounts, shift history, audit log |
+
+Works on phones (bottom tabs, bottom-sheet dialogs), tablets (side-by-side POS cart) and desktops.
+Can be added to the home screen. Online-only (no offline mode).
+
+## How the data is protected
+
+- All writes to sales, payments, shifts, containers, cash and voids go through **Postgres functions**
+  (`create_order`, `record_payment`, `close_shift`, …). Each one is a single transaction and checks the caller's role.
+  App users have **no direct UPDATE/DELETE** on those tables, and nothing is ever deleted.
+- **Row Level Security** on every table. Secretaries can't see the audit log, SOAs, other people's shifts,
+  or the owner reports, and can't change prices or credit terms.
+- Every change is written to `audit_log` by trigger.
+- Public sign-up is disabled. The owner creates accounts from **Staff**.
+
+See [supabase/migrations/20261029000000_init.sql](supabase/migrations/20261029000000_init.sql).
+
+## Local development
+
+Requires Node 22+, the Supabase CLI and Docker or Podman.
 
 ```bash
+npm install
+supabase start          # local Postgres/Auth/Realtime (prints the keys)
+supabase db reset       # applies migration + seed
+cp .env.example .env.local   # fill in the keys printed by `supabase start`
 npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+Seed logins (local only): `owner@aquabest.local` / `secretary@aquabest.local`, password `password123`.
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+```bash
+supabase test db        # 41 database tests: business rules + permissions
+npm run lint && npx tsc --noEmit
+supabase gen types typescript --local > src/lib/types/database.ts   # after schema changes
+```
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+On this Bazzite machine: Node and the CLI are in Homebrew (`/home/linuxbrew/.linuxbrew/opt/node@22/bin`,
+`/home/linuxbrew/.linuxbrew/bin`). Supabase talks to Podman through
+`DOCKER_HOST=unix:///run/user/1000/podman/podman.sock`.
 
-## Learn More
+## Going live
 
-To learn more about Next.js, take a look at the following resources:
+1. Create a Supabase project. Use **Pro ($25/mo)** for daily backups; the free tier has none and pauses when idle.
+2. `supabase link --project-ref <ref>` then `supabase db push` (do **not** run `seed.sql` in production).
+3. In the dashboard, under **Authentication → Sign In / Providers**, turn off "Allow new users to sign up".
+4. Create the owner account: **Authentication → Users → Add user**, then in the SQL editor run
+   `update profiles set role = 'owner' where id = (select id from auth.users where email = 'OWNER_EMAIL');`
+5. Deploy the Next.js app. **Vercel Hobby doesn't allow commercial use**, so use Vercel Pro, or Netlify/Cloudflare.
+   Set `NEXT_PUBLIC_SUPABASE_URL`, `NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY` and `SUPABASE_SECRET_KEY`
+   (secret key is server-only and only used to create staff accounts).
+6. Set the Supabase **Site URL** to your app's URL.
+7. Sign in as the owner, add products/prices, riders and staff accounts.
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+## Notes
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
-
-## Deploy on Vercel
-
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
-
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+- Times and day boundaries use **Asia/Manila**.
+- Printed receipts say "This is not an official receipt". If you need BIR official receipts, use your registered OR booklet/POS.
